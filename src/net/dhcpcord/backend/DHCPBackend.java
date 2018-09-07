@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 import net.dhcpcord.backend.errors.*;
@@ -31,7 +32,7 @@ public class DHCPBackend {
 				PrintWriter output = new PrintWriter(conn.getOutputStream());
 				BufferedReader input = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 				crashed = false;
-				String cmd, intent, entity, guild, user;
+				String cmd, intent, entity, guild, user = null;
 				String[] cmdParsed = null;
 				while((cmd = input.readLine()) != null) {
 					System.out.println("Received request: " + cmd);
@@ -40,13 +41,43 @@ public class DHCPBackend {
 						intent = cmdParsed[0];
 						entity = cmdParsed[1];
 						guild = cmdParsed[2];
-						user = cmdParsed[3];
+						if(!intent.equals("FLUSH")) {
+							user = cmdParsed[3];
+						}
 						if(intent.equals("GET")) {
 							if(entity.equals("IP")) {
 								output.println(getIp(guild, user));
 							}
+							else if(entity.equals("USER")) {
+								try {
+									output.println(getUser(guild, user)); //In this case, the "user" is actually an IP address instead of an ID
+								}
+								catch(Exception e) {
+									output.print(Errors.ERR_IP_UNREG + " " + e.getMessage());
+								}
+							}
 							else if(entity.equals("SERVICE")) {
 								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
+							}
+							else {
+								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
+							}
+						}
+						if(intent.equals("FLUSH")){
+							if(entity.equals("IP")) {
+								try {
+									flush(guild);
+									output.println("true");
+								}
+								catch(Exception e) {
+									output.print(Errors.ERR_FLUSH + " " + e);
+								}
+							}
+							else if(entity.equals("SERVICE")) {
+								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
+							}
+							else if(entity.equals("USER")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'FLUSH' operator not defined for entity 'USER'");
 							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
@@ -70,6 +101,9 @@ public class DHCPBackend {
 							else if(entity.equals("SERVICE")) {
 								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
 							}
+							else if(entity.equals("USER")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'SET' operator not defined for entity 'USER'");
+							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
@@ -85,6 +119,9 @@ public class DHCPBackend {
 							}
 							else if(entity.equals("SERVICE")) {
 								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'SERVICE'");
+							}
+							else if(entity.equals("USER")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'USER'");
 							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
@@ -163,6 +200,15 @@ public class DHCPBackend {
 		}
 		return true;
 	}
+	private static String getUser(String guild, String ip) throws Exception{
+		HashMap<String, String> guildCache = cache.get(guild);
+		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
+			if(entry.getValue().equals(ip)) {
+				return entry.getKey();
+			}
+		}
+		throw new Exception("IP not assigned to a user");
+	}
 	private static String getIp(String guild, String user) throws Exception{
 		HashMap<String, String> guildCache = cache.get(guild);
 		String ip = "";
@@ -172,6 +218,7 @@ public class DHCPBackend {
 		File file = new File("dhcp/" + guild);
 		if(!file.exists()) {
 			file.mkdirs();
+			cache.put(guild, new HashMap<>());
 		}
 		file = new File("dhcp/" + guild + "/" + user);
 		if(!file.exists()) {
@@ -213,5 +260,12 @@ public class DHCPBackend {
 		File file = new File("dhcp/" + guild + "/" + user);
 		file.delete();
 		cache.get(guild).remove(user);
+	}
+	private static void flush(String guild) throws Exception{
+		HashMap<String, String> guildCache = cache.get(guild);
+		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
+			release(guild, entry.getKey());
+		}
+		cache.remove(guild);
 	}
 }
