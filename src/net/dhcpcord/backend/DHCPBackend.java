@@ -144,6 +144,28 @@ public class DHCPBackend {
 							output.flush();
 							continue;
 						}
+						if(intent.equals("ASSIGNBULK")) {
+							if(entity.equals("IP")) {
+								try {
+									assignIPBulk(guild, user);
+									output.println();
+								}
+								catch(Exception e) {
+									output.println(Errors.ERR_IP_ASSIGN + " " + e);
+								}
+							}
+							else if(entity.equals("SERVICE")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'SERVICE'");
+							}
+							else if(entity.equals("USER")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'USER'");
+							}
+							else {
+								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
+							}
+							output.flush();
+							continue;
+						}
 						if(intent.equals("RELEASE") || intent.equals("REMOVE")) {
 							if(entity.equals("IP")) {
 								try {
@@ -265,11 +287,35 @@ public class DHCPBackend {
 	}
 	private static void setIp(String guild, String user, String ip, boolean write) throws Exception{
 		cache.get(guild).put(user, ip);
+		System.out.println("Assigned IP " + ip + " to user " + user);
 		if(!write) {return;}
 		File file = new File("dhcp/" + guild + "/" + user);
 		FileWriter fw = new FileWriter(file);
 		fw.write(ip);
 		fw.close();
+	}
+	private static void assignIPBulk(String guild, String userStr) throws Exception{
+		String[] users = userStr.split(",");
+		String ip = null;
+		String range = IP_RANGES[(int)(Long.parseLong(guild) % 2L)];
+		HashMap<String, String> guildCache = cache.get(guild);
+		if(guildCache == null) {
+			cache.put(guild, new HashMap<>());
+			guildCache = new HashMap<>();
+		}
+		int complete = 0;
+		int x = 0;
+		while(x < 255*255 || complete < users.length) {
+			ip = String.format(range, (x / 255), (x % 254) + 1);
+			x++;
+			if(!guildCache.containsValue(ip)) {
+				setIp(guild, users[complete], ip, true);
+				complete++;
+				if(complete == users.length) {
+					return;
+				}
+			}
+		}
 	}
 	private static String assignIp(String guild, String user) throws Exception{
 		String ip = null;
