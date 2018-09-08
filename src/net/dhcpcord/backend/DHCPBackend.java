@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -17,6 +18,7 @@ public class DHCPBackend {
 	
 	private static final String[] IP_RANGES = {"192.168.%d.%d", "10.0.%d.%d"};
 	private static HashMap<String, HashMap<String, String>> cache = new HashMap<>();
+	private static HashMap<String, ArrayList<String>> freedIps = new HashMap<>();
 	
 	public static void main(String[] args) throws Exception{
 		boolean crashed = false;
@@ -259,7 +261,10 @@ public class DHCPBackend {
 		System.out.println("IP " + ip + " not registered");
 		throw new Exception("IP not assigned to a user");
 	}
-	private static String getIp(String guild, String user) throws Exception{
+	private static String getIp(String guild, String user) throws Exception {
+		return getIp(guild, user, true);
+	}
+	private static String getIp(String guild, String user, boolean assign) throws Exception{
 		HashMap<String, String> guildCache = cache.get(guild);
 		String ip = "";
 		if(!(guildCache == null) && guildCache.containsKey(user)) {
@@ -271,7 +276,7 @@ public class DHCPBackend {
 			cache.put(guild, new HashMap<>());
 		}
 		file = new File("dhcp/" + guild + "/" + user);
-		if(!file.exists()) {
+		if(!file.exists() && assign) {
 			return assignIp(guild, user);
 		}
 		try {
@@ -287,6 +292,10 @@ public class DHCPBackend {
 	}
 	private static void setIp(String guild, String user, String ip, boolean write) throws Exception{
 		cache.get(guild).put(user, ip);
+		try {
+			freedIps.remove(ip);
+		}
+		catch(Exception e) {}
 		System.out.println("Assigned IP " + ip + " to user " + user);
 		if(!write) {return;}
 		File file = new File("dhcp/" + guild + "/" + user);
@@ -305,15 +314,24 @@ public class DHCPBackend {
 		}
 		int complete = 0;
 		int x = 0;
-		while(x < 255*255 || complete < users.length) {
+		while(x < 255*255 && complete < users.length) {
+			if(complete == users.length) { //Just in case
+				return;
+			}
+			if(!freedIps.get(guild).isEmpty()) {
+				ip = freedIps.get(guild).remove(0);
+				setIp(guild, users[complete], ip, true);
+				complete++;
+				continue;
+			}
 			ip = String.format(range, (x / 255), (x % 254) + 1);
 			x++;
 			if(!guildCache.containsValue(ip)) {
 				setIp(guild, users[complete], ip, true);
 				complete++;
-				if(complete == users.length) {
-					return;
-				}
+			}
+			if(complete == users.length) {
+				return;
 			}
 		}
 	}
@@ -325,25 +343,33 @@ public class DHCPBackend {
 			cache.put(guild, new HashMap<>());
 			guildCache = new HashMap<>();
 		}
-		int x = 0;
-		boolean brk = false;
-		do {
-			brk = true;
-			ip = String.format(range, (x / 255), (x % 254) + 1);
-			System.out.println("Trying IP " + ip + "...");
-			for(Map.Entry<String, String> entry : guildCache.entrySet()) {
-				if(entry.getValue().equals(ip)) {
-					brk = false;
-				}
-			}
-			if(brk) {
-				break;
-			}
-			x++;
+		if(freedIps.get(guild) == null) {
+			freedIps.put(guild, new ArrayList<>());
 		}
-		while(x < 255*255);
-		if(ip == null) {
-			throw new Exception(Errors.ERR_IP_ASSIGN + " IP range full for this guild!");
+		if(freedIps.get(guild).isEmpty()) {
+			int x = 0;
+			boolean brk = false;
+			do {
+				brk = true;
+				ip = String.format(range, (x / 255), (x % 254) + 1);
+				System.out.println("Trying IP " + ip + "...");
+				for(Map.Entry<String, String> entry : guildCache.entrySet()) {
+					if(entry.getValue().equals(ip)) {
+						brk = false;
+					}
+				}
+				if(brk) {
+					break;
+				}
+				x++;
+			}
+			while(x < 255*255);
+			if(ip == null) {
+				throw new Exception(Errors.ERR_IP_ASSIGN + " IP range full for this guild!");
+			}
+		}
+		else {
+			ip = freedIps.get(guild).remove(0);
 		}
 		setIp(guild, user, ip, true);
 		System.out.println(ip + " was free!");
@@ -353,7 +379,10 @@ public class DHCPBackend {
 		File file = new File("dhcp/" + guild + "/" + user);
 		file.delete();
 		if(modify) {
-			cache.get(guild).remove(user);
+			if(freedIps.get(guild) == null) {
+				freedIps.put(guild, new ArrayList<>());
+			}
+			freedIps.get(guild).add(cache.get(guild).remove(user));
 		}
 	}
 	private static void flush(String guild) throws Exception{
