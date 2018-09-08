@@ -9,4 +9,5 @@ public class Errors {
 	public static final String ERR_UNKNOWN = "ERROR UNKNOWN";
 	public static final String ERR_IP_UNREG = "ERROR IPUNREG";
 	public static final String ERR_FLUSH = "ERROR FLUSH";
+	public static final String ERR_IP_ASSIGN = "ERROR IP_ASSIGN";
 }
