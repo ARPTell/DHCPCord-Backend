@@ -389,7 +389,7 @@ public class DHCPBackend {
 		HashMap<String, String> guildCache = cache.get(guild);
 		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
 			System.out.println("Releasing " + entry);
-			release(guild, entry.getKey(), false);
+			release(guild, entry.getKey(), true);
 		}
 		cache.remove(guild);
 		System.out.println("Done!");
