@@ -407,7 +407,7 @@ public class DHCPBackend {
 		HashMap<String, String> guildCache = cache.get(guild);
 		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
 			System.out.println("Releasing " + entry);
-			release(guild, entry.getKey(), true);
+			release(guild, entry.getKey(), false);
 		}
 		cache.remove(guild);
 		System.out.println("Done!");
