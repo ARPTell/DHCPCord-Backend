@@ -150,7 +150,7 @@ public class DHCPBackend {
 							if(entity.equals("IP")) {
 								try {
 									assignIPBulk(guild, user);
-									output.println();
+									output.println("true");
 								}
 								catch(Exception e) {
 									output.println(Errors.ERR_IP_ASSIGN + " " + e);
@@ -322,6 +322,9 @@ public class DHCPBackend {
 		if(guildCache == null) {
 			cache.put(guild, new HashMap<>());
 			guildCache = new HashMap<>();
+		}
+		if(freedIps.get(guild) == null) {
+			freedIps.put(guild, new ArrayList<>());
 		}
 		int complete = 0;
 		int x = 0;
