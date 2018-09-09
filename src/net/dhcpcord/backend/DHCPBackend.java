@@ -221,6 +221,9 @@ public class DHCPBackend {
 			}
 		}
 	}
+	private static void createFolder(String guild) {
+		new File("dhcp/" + guild).mkdirs();
+	}
 	private static boolean initCache() {
 		System.out.println("Loading cache...");
 		try {
@@ -291,6 +294,10 @@ public class DHCPBackend {
 		return ip;
 	}
 	private static void setIp(String guild, String user, String ip, boolean write) throws Exception{
+		try {
+			createFolder(guild);
+		}
+		catch(Exception e) {}
 		cache.get(guild).put(user, ip);
 		try {
 			freedIps.remove(ip);
@@ -304,6 +311,10 @@ public class DHCPBackend {
 		fw.close();
 	}
 	private static void assignIPBulk(String guild, String userStr) throws Exception{
+		try {
+			createFolder(guild);
+		}
+		catch(Exception e) {}
 		String[] users = userStr.split(",");
 		String ip = null;
 		String range = IP_RANGES[(int)(Long.parseLong(guild) % 2L)];
@@ -336,6 +347,10 @@ public class DHCPBackend {
 		}
 	}
 	private static String assignIp(String guild, String user) throws Exception{
+		try {
+			createFolder(guild);
+		}
+		catch(Exception e) {}
 		String ip = null;
 		String range = IP_RANGES[(int)(Long.parseLong(guild) % 2L)];
 		HashMap<String, String> guildCache = cache.get(guild);
