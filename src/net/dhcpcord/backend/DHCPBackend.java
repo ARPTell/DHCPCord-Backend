@@ -9,7 +9,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Scanner;
 
 import net.dhcpcord.backend.errors.*;
@@ -17,16 +16,12 @@ import net.dhcpcord.backend.errors.*;
 public class DHCPBackend {
 	
 	private static final String[] IP_RANGES = {"192.168.%d.%d", "10.0.%d.%d"};
-	private static HashMap<String, HashMap<String, String>> cache = new HashMap<>();
 	private static HashMap<String, ArrayList<String>> freedIps = new HashMap<>();
 	
 	public static void main(String[] args) throws Exception{
 		boolean crashed = false;
 		ServerSocket server = new ServerSocket(47606);
 		System.out.println("Started DHCP server on " + server.getInetAddress().getHostAddress() + ":" + server.getLocalPort());
-		if(!initCache()) {
-			System.err.println("WARNING: Failed to initialize cache");
-		}
 		while(true) {
 			try {
 				Socket conn = server.accept();
@@ -64,6 +59,7 @@ public class DHCPBackend {
 									output.println(getUser(guild, user)); //In this case, the "user" is actually an IP address instead of an ID
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									output.println(Errors.ERR_IP_UNREG + " " + e.getMessage());
 								}
 							}
@@ -73,8 +69,6 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 						if(intent.equals("FLUSH")){
 							if(entity.equals("IP")) {
@@ -83,6 +77,7 @@ public class DHCPBackend {
 									output.println("true");
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									output.println(Errors.ERR_FLUSH + " " + e);
 								}
 							}
@@ -95,8 +90,6 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 						if(intent.equals("SET")) {
 							if(entity.equals("IP")) {
@@ -105,6 +98,7 @@ public class DHCPBackend {
 									output.println("SUCCESS");
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									if(e instanceof ArrayIndexOutOfBoundsException) {
 										output.println(Errors.ERR_ARGS + " Missing argument: ip. Syntax: SET IP guild user ip");
 									}
@@ -122,8 +116,6 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 						if(intent.equals("ASSIGN")) {
 							if(entity.equals("IP")) {
@@ -131,6 +123,7 @@ public class DHCPBackend {
 									output.println(assignIp(guild, user));
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									output.println(Errors.ERR_UNKNOWN + " " + e);
 								}
 							}
@@ -143,8 +136,6 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 						if(intent.equals("ASSIGNBULK")) {
 							if(entity.equals("IP")) {
@@ -153,6 +144,7 @@ public class DHCPBackend {
 									output.println("true");
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									output.println(Errors.ERR_IP_ASSIGN + " " + e);
 								}
 							}
@@ -165,16 +157,15 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 						if(intent.equals("RELEASE") || intent.equals("REMOVE")) {
 							if(entity.equals("IP")) {
 								try {
-									release(guild, user, true);
+									release(guild, user);
 									output.println("true");
 								}
 								catch(Exception e) {
+									e.printStackTrace();
 									output.println(Errors.ERR_UNKNOWN + " " + e);
 								}
 							}
@@ -184,8 +175,6 @@ public class DHCPBackend {
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
-							output.flush();
-							continue;
 						}
 					}
 					catch(Exception e) {
@@ -224,6 +213,7 @@ public class DHCPBackend {
 	private static void createFolder(String guild) {
 		new File("dhcp/" + guild).mkdirs();
 	}
+	/*
 	private static boolean initCache() {
 		System.out.println("Loading cache...");
 		try {
@@ -251,15 +241,13 @@ public class DHCPBackend {
 		}
 		System.out.println("Done!");
 		return true;
-	}
+	}*/
+	@SuppressWarnings("resource")
 	private static String getUser(String guild, String ip) throws Exception{
 		System.out.println("Getting user associated with IP " + ip + "... (Guild: " + guild + ")");
-		HashMap<String, String> guildCache = cache.get(guild);
-		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
-			System.out.println(entry.getKey() + ":" + entry.getValue());
-			if(entry.getValue().equals(ip)) {
-				return entry.getKey();
-			}
+		File file = new File("dhcp/" + guild + "/" + ip);
+		if(file.exists()) {
+			return new Scanner(file).nextLine();
 		}
 		System.out.println("IP " + ip + " not registered");
 		throw new Exception("IP not assigned to a user");
@@ -268,15 +256,10 @@ public class DHCPBackend {
 		return getIp(guild, user, true);
 	}
 	private static String getIp(String guild, String user, boolean assign) throws Exception{
-		HashMap<String, String> guildCache = cache.get(guild);
 		String ip = "";
-		if(!(guildCache == null) && guildCache.containsKey(user)) {
-			return guildCache.get(user);
-		}
 		File file = new File("dhcp/" + guild);
 		if(!file.exists()) {
 			file.mkdirs();
-			cache.put(guild, new HashMap<>());
 		}
 		file = new File("dhcp/" + guild + "/" + user);
 		if(!file.exists() && assign) {
@@ -286,7 +269,6 @@ public class DHCPBackend {
 			Scanner sc = new Scanner(file);
 			ip = sc.nextLine();
 			sc.close();
-			cache.get(guild).put(user, ip);
 		}
 		catch(FileNotFoundException e) {
 			ip = null;
@@ -298,17 +280,16 @@ public class DHCPBackend {
 			createFolder(guild);
 		}
 		catch(Exception e) {}
-		cache.get(guild).put(user, ip);
-		try {
-			freedIps.remove(ip);
-		}
-		catch(Exception e) {}
-		System.out.println("Assigned IP " + ip + " to user " + user);
 		if(!write) {return;}
 		File file = new File("dhcp/" + guild + "/" + user);
 		FileWriter fw = new FileWriter(file);
 		fw.write(ip);
 		fw.close();
+		file = new File("dhcp/" + guild + "/" + ip);
+		fw = new FileWriter(file);
+		fw.write(user);
+		fw.close();
+		System.out.println("Assigned IP " + ip + " to user " + user);
 	}
 	private static void assignIPBulk(String guild, String userStr) throws Exception{
 		try {
@@ -318,11 +299,6 @@ public class DHCPBackend {
 		String[] users = userStr.split(",");
 		String ip = null;
 		String range = IP_RANGES[(int)(Long.parseLong(guild) % 2L)];
-		HashMap<String, String> guildCache = cache.get(guild);
-		if(guildCache == null) {
-			cache.put(guild, new HashMap<>());
-			guildCache = new HashMap<>();
-		}
 		if(freedIps.get(guild) == null) {
 			freedIps.put(guild, new ArrayList<>());
 		}
@@ -340,7 +316,10 @@ public class DHCPBackend {
 			}
 			ip = String.format(range, (x / 255), (x % 254) + 1);
 			x++;
-			if(!guildCache.containsValue(ip)) {
+			try {
+				getUser(guild, ip);
+			}
+			catch(Exception e) {
 				setIp(guild, users[complete], ip, true);
 				complete++;
 			}
@@ -356,28 +335,21 @@ public class DHCPBackend {
 		catch(Exception e) {}
 		String ip = null;
 		String range = IP_RANGES[(int)(Long.parseLong(guild) % 2L)];
-		HashMap<String, String> guildCache = cache.get(guild);
-		if(guildCache == null) {
-			cache.put(guild, new HashMap<>());
-			guildCache = new HashMap<>();
-		}
+		File file = null;
 		if(freedIps.get(guild) == null) {
 			freedIps.put(guild, new ArrayList<>());
 		}
 		if(freedIps.get(guild).isEmpty()) {
 			int x = 0;
-			boolean brk = false;
 			do {
-				brk = true;
 				ip = String.format(range, (x / 255), (x % 254) + 1);
 				System.out.println("Trying IP " + ip + "...");
-				for(Map.Entry<String, String> entry : guildCache.entrySet()) {
-					if(entry.getValue().equals(ip)) {
-						brk = false;
-					}
-				}
-				if(brk) {
+				file = new File("dhcp/" + guild + "/" + ip);
+				if(!file.exists()) {
 					break;
+				}
+				else {
+					ip = null;
 				}
 				x++;
 			}
@@ -393,23 +365,22 @@ public class DHCPBackend {
 		System.out.println(ip + " was free!");
 		return ip;
 	}
-	private static void release(String guild, String user, boolean modify) throws Exception{
-		File file = new File("dhcp/" + guild + "/" + user);
+	private static void release(String guild, String user) throws Exception{
+		File file = new File("dhcp/" + guild + "/" + getIp(guild, user));
 		file.delete();
-		if(modify) {
-			if(freedIps.get(guild) == null) {
-				freedIps.put(guild, new ArrayList<>());
-			}
-			freedIps.get(guild).add(cache.get(guild).remove(user));
-		}
+		file = new File("dhcp/" + guild + "/" + user);
+		file.delete();
 	}
 	private static void flush(String guild) throws Exception{
-		HashMap<String, String> guildCache = cache.get(guild);
-		for(Map.Entry<String, String> entry : guildCache.entrySet()) {
-			System.out.println("Releasing " + entry);
-			release(guild, entry.getKey(), false);
+		File folder = new File("dhcp/" + guild);
+		if(!folder.exists()) {
+			return;
 		}
-		cache.remove(guild);
+		File[] files = folder.listFiles();
+		for(File file : files) {
+			file.delete();
+		}
+		folder.delete();
 		System.out.println("Done!");
 	}
 }
