@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
 import net.dhcpcord.backend.errors.*;
 
 public class DHCPBackend {
@@ -42,6 +45,19 @@ public class DHCPBackend {
 						System.out.println("Intent: " + intent);
 						if(intent.equals("PING")) {
 							output.println("Pong!");
+							output.flush();
+							continue;
+						}
+						else if(intent.equals("EVAL")) {
+							ScriptEngine se = new ScriptEngineManager().getEngineByName("Nashorn");
+							se.put("server", new DHCPBackend());
+							try {
+								output.println(se.eval(cmd.substring(5)));
+							}
+							catch(Exception e) {
+								output.println(Errors.ERR_EVAL + " " + e);
+							}
+							output.flush();
 							continue;
 						}
 						entity = cmdParsed[1];
@@ -210,7 +226,7 @@ public class DHCPBackend {
 			}
 		}
 	}
-	private static void createFolder(String guild) {
+	public static void createFolder(String guild) {
 		new File("dhcp/" + guild).mkdirs();
 	}
 	/*
@@ -243,7 +259,7 @@ public class DHCPBackend {
 		return true;
 	}*/
 	@SuppressWarnings("resource")
-	private static String getUser(String guild, String ip) throws Exception{
+	public static String getUser(String guild, String ip) throws Exception{
 		System.out.println("Getting user associated with IP " + ip + "... (Guild: " + guild + ")");
 		File file = new File("dhcp/" + guild + "/" + ip);
 		if(file.exists()) {
@@ -252,10 +268,10 @@ public class DHCPBackend {
 		System.out.println("IP " + ip + " not registered");
 		throw new Exception("IP not assigned to a user");
 	}
-	private static String getIp(String guild, String user) throws Exception {
+	public static String getIp(String guild, String user) throws Exception {
 		return getIp(guild, user, true);
 	}
-	private static String getIp(String guild, String user, boolean assign) throws Exception{
+	public static String getIp(String guild, String user, boolean assign) throws Exception{
 		String ip = "";
 		File file = new File("dhcp/" + guild);
 		if(!file.exists()) {
@@ -275,7 +291,7 @@ public class DHCPBackend {
 		}
 		return ip;
 	}
-	private static void setIp(String guild, String user, String ip, boolean write) throws Exception{
+	public static void setIp(String guild, String user, String ip, boolean write) throws Exception{
 		try {
 			createFolder(guild);
 		}
@@ -289,9 +305,13 @@ public class DHCPBackend {
 		fw = new FileWriter(file);
 		fw.write(user);
 		fw.close();
+		try {
+			freedIps.get(guild).remove(ip);
+		}
+		catch(Exception e) {}
 		System.out.println("Assigned IP " + ip + " to user " + user);
 	}
-	private static void assignIPBulk(String guild, String userStr) throws Exception{
+	public static void assignIPBulk(String guild, String userStr) throws Exception{
 		try {
 			createFolder(guild);
 		}
@@ -328,7 +348,7 @@ public class DHCPBackend {
 			}
 		}
 	}
-	private static String assignIp(String guild, String user) throws Exception{
+	public static String assignIp(String guild, String user) throws Exception{
 		try {
 			createFolder(guild);
 		}
@@ -365,13 +385,17 @@ public class DHCPBackend {
 		System.out.println(ip + " was free!");
 		return ip;
 	}
-	private static void release(String guild, String user) throws Exception{
+	public static void release(String guild, String user) throws Exception{
+		try {
+			freedIps.get(guild).add(getIp(guild, user));
+		}
+		catch(Exception e) {}
 		File file = new File("dhcp/" + guild + "/" + getIp(guild, user));
 		file.delete();
 		file = new File("dhcp/" + guild + "/" + user);
 		file.delete();
 	}
-	private static void flush(String guild) throws Exception{
+	public static void flush(String guild) throws Exception{
 		File folder = new File("dhcp/" + guild);
 		if(!folder.exists()) {
 			return;
@@ -381,6 +405,10 @@ public class DHCPBackend {
 			file.delete();
 		}
 		folder.delete();
+		try {
+			freedIps.remove(guild);
+		}
+		catch(Exception e) {}
 		System.out.println("Done!");
 	}
 }
