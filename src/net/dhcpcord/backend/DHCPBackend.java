@@ -82,11 +82,14 @@ public class DHCPBackend {
 							else if(entity.equals("SERVICE")) {
 								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
 							}
+							else if(entity.equals("MASK")) {
+								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
+							}	
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
 						}
-						if(intent.equals("FLUSH")){
+						else if(intent.equals("FLUSH")){
 							if(entity.equals("IP")) {
 								try {
 									flush(guild);
@@ -103,11 +106,14 @@ public class DHCPBackend {
 							else if(entity.equals("USER")) {
 								output.println(Errors.ERR_IMPLEMENT + " 'FLUSH' operator not defined for entity 'USER'");
 							}
+							else if(entity.equals("MASK")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'FLUSH' operator not defined for entity 'MASK'");
+							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
 						}
-						if(intent.equals("SET")) {
+						else if(intent.equals("SET")) {
 							if(entity.equals("IP")) {
 								try {
 									setIp(guild, user, cmdParsed[4], true);
@@ -133,7 +139,7 @@ public class DHCPBackend {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
 						}
-						if(intent.equals("ASSIGN")) {
+						else if(intent.equals("ASSIGN")) {
 							if(entity.equals("IP")) {
 								try {
 									output.println(assignIp(guild, user));
@@ -149,11 +155,14 @@ public class DHCPBackend {
 							else if(entity.equals("USER")) {
 								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'USER'");
 							}
+							else if(entity.equals("MASK")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'MASK'");
+							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
 						}
-						if(intent.equals("ASSIGNBULK")) {
+						else if(intent.equals("ASSIGNBULK")) {
 							if(entity.equals("IP")) {
 								try {
 									assignIPBulk(guild, user);
@@ -170,11 +179,14 @@ public class DHCPBackend {
 							else if(entity.equals("USER")) {
 								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'USER'");
 							}
+							else if(entity.equals("MASK")) {
+								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'MASK'");
+							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
 						}
-						if(intent.equals("RELEASE") || intent.equals("REMOVE")) {
+						else if(intent.equals("RELEASE") || intent.equals("REMOVE")) {
 							if(entity.equals("IP")) {
 								try {
 									release(guild, user);
@@ -188,9 +200,15 @@ public class DHCPBackend {
 							else if(entity.equals("SERVICE")) {
 								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
 							}
+							else if(entity.equals("MASK")) {
+								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
+							}
 							else {
 								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
 							}
+						}
+						else {
+							output.println(Errors.ERR_SYNTAX + " Unknown intent: " + entity);
 						}
 					}
 					catch(Exception e) {
