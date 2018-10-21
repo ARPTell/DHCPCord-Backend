@@ -1,6 +1,6 @@
 package net.dhcpcord.backend.util;
 
-public enum Entities {
+public enum Entitiy {
 
 	IP("IP"),
 	USER("USER"),
@@ -8,7 +8,7 @@ public enum Entities {
 	SERVICE("SERVICE");
 	
 	private final String name;
-	private Entities(String name) {
+	private Entitiy(String name) {
 		this.name = name;
 	}
 	public boolean isEntity(String entity) {

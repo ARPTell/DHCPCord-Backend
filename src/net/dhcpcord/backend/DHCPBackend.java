@@ -13,6 +13,7 @@ import java.util.Scanner;
 
 import net.dhcpcord.backend.errors.*;
 import net.dhcpcord.backend.handlers.*;
+import net.dhcpcord.backend.util.EntityChecker;
 
 public class DHCPBackend {
 	
@@ -49,24 +50,32 @@ public class DHCPBackend {
 					try {
 						cmdParsed = cmd.split(" ");
 						handler = getHandler(cmdParsed[0]);
+						if(handler == null) {
+							throw new UnsupportedOperationException("Bad intent: " + cmdParsed[0]);
+						}
+						if(cmdParsed.length > 1 && !EntityChecker.isValid(cmdParsed[1])) {
+							throw new UnsupportedOperationException("Bad entity: " + cmdParsed[1]);
+						}
 						output.println(handler.handle(cmdParsed));
+					}
+					catch(UnsupportedOperationException e) {
+						output.println(Errors.ERR_SYNTAX + " " + e.getMessage());
+					}
+					catch(ArrayIndexOutOfBoundsException e){
+						String arg;
+						switch(e.getMessage()) {
+						case "0": arg = "intent"; break;
+						case "1": arg = "entity"; break;
+						case "2": arg = "guild"; break;
+						case "3": arg = "user"; break;
+						case "4": arg = "ip"; break;
+						default: arg = "unknown";
+						}
+						output.println(Errors.ERR_ARGS + " Missing argument: " + arg);
 					}
 					catch(Exception e) {
 						e.printStackTrace();
-						if(e instanceof ArrayIndexOutOfBoundsException) {
-							String arg;
-							switch(e.getMessage()) {
-							case "0": arg = "intent"; break;
-							case "1": arg = "entity"; break;
-							case "2": arg = "guild"; break;
-							case "3": arg = "user"; break;
-							default: arg = "unknown";
-							}
-							output.println(Errors.ERR_ARGS + " Missing argument: " + arg);
-						}
-						else {
-							output.println(Errors.ERR_UNKNOWN + " " + e.getMessage());
-						}
+						output.println(Errors.ERR_UNKNOWN + " " + e.getMessage());
 					}
 					output.flush();
 				}
