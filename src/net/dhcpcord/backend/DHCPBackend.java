@@ -11,15 +11,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-
 import net.dhcpcord.backend.errors.*;
+import net.dhcpcord.backend.handlers.*;
 
 public class DHCPBackend {
 	
 	private static final String[] IP_RANGES = {"192.168.%d.%d", "10.0.%d.%d"};
 	private static HashMap<String, ArrayList<String>> freedIps = new HashMap<>();
+	private static PrintWriter output;
+	private static Handler assignHandler = new AssignHandler();
+	private static Handler flushHandler = new FlushHandler();
+	private static Handler getHandler = new GetHandler();
+	private static Handler setHandler = new SetHandler();
+	private static Handler releaseHandler = new ReleaseHandler();
+	private static Handler serviceHandler = new ServiceHandler();
+	
 	
 	public static void main(String[] args) throws Exception{
 		boolean crashed = false;
@@ -29,187 +35,21 @@ public class DHCPBackend {
 			try {
 				Socket conn = server.accept();
 				System.out.println("Received connection from " + conn.getRemoteSocketAddress());
-				PrintWriter output = new PrintWriter(conn.getOutputStream());
+				output = new PrintWriter(conn.getOutputStream());
 				BufferedReader input = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 				output.println();
 				output.flush();
 				crashed = false;
-				String cmd, intent, entity, guild, user = null;
+				Handler handler = null;
+				String cmd = null;
 				String[] cmdParsed = null;
 				System.out.println("Waiting for requests...");
 				while((cmd = input.readLine()) != null) {
 					System.out.println("Received request: " + cmd);
 					try {
 						cmdParsed = cmd.split(" ");
-						intent = cmdParsed[0];
-						System.out.println("Intent: " + intent);
-						if(intent.equals("PING")) {
-							output.println("Pong!");
-							output.flush();
-							continue;
-						}
-						else if(intent.equals("EVAL")) {
-							ScriptEngine se = new ScriptEngineManager().getEngineByName("Nashorn");
-							se.put("server", new DHCPBackend());
-							try {
-								output.println(se.eval(cmd.substring(5)));
-							}
-							catch(Exception e) {
-								output.println(Errors.ERR_EVAL + " " + e);
-							}
-							output.flush();
-							continue;
-						}
-						entity = cmdParsed[1];
-						System.out.println("Entity: " + entity);
-						guild = cmdParsed[2];
-						System.out.println("Guild: " + guild);
-						user = cmdParsed[3];
-						System.out.println("User: " + user);
-						if(intent.equals("GET")) {
-							if(entity.equals("IP")) {
-								output.println(getIp(guild, user));
-							}
-							else if(entity.equals("USER")) {
-								try {
-									output.println(getUser(guild, user)); //In this case, the "user" is actually an IP address instead of an ID
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									output.println(Errors.ERR_IP_UNREG + " " + e.getMessage());
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}
-							else if(entity.equals("MASK")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}	
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else if(intent.equals("FLUSH")){
-							if(entity.equals("IP")) {
-								try {
-									flush(guild);
-									output.println("true");
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									output.println(Errors.ERR_FLUSH + " " + e);
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}
-							else if(entity.equals("USER")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'FLUSH' operator not defined for entity 'USER'");
-							}
-							else if(entity.equals("MASK")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'FLUSH' operator not defined for entity 'MASK'");
-							}
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else if(intent.equals("SET")) {
-							if(entity.equals("IP")) {
-								try {
-									setIp(guild, user, cmdParsed[4], true);
-									output.println("SUCCESS");
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									if(e instanceof ArrayIndexOutOfBoundsException) {
-										output.println(Errors.ERR_ARGS + " Missing argument: ip. Syntax: SET IP guild user ip");
-									}
-									else {
-										output.println(Errors.ERR_UNKNOWN + " " + e);
-									}
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}
-							else if(entity.equals("USER")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'SET' operator not defined for entity 'USER'");
-							}
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else if(intent.equals("ASSIGN")) {
-							if(entity.equals("IP")) {
-								try {
-									output.println(assignIp(guild, user));
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									output.println(Errors.ERR_UNKNOWN + " " + e);
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'SERVICE'");
-							}
-							else if(entity.equals("USER")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'USER'");
-							}
-							else if(entity.equals("MASK")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGN' operator not defined for entity 'MASK'");
-							}
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else if(intent.equals("ASSIGNBULK")) {
-							if(entity.equals("IP")) {
-								try {
-									assignIPBulk(guild, user);
-									output.println("true");
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									output.println(Errors.ERR_IP_ASSIGN + " " + e);
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'SERVICE'");
-							}
-							else if(entity.equals("USER")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'USER'");
-							}
-							else if(entity.equals("MASK")) {
-								output.println(Errors.ERR_IMPLEMENT + " 'ASSIGNBULK' operator not defined for entity 'MASK'");
-							}
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else if(intent.equals("RELEASE") || intent.equals("REMOVE")) {
-							if(entity.equals("IP")) {
-								try {
-									release(guild, user);
-									output.println("true");
-								}
-								catch(Exception e) {
-									e.printStackTrace();
-									output.println(Errors.ERR_UNKNOWN + " " + e);
-								}
-							}
-							else if(entity.equals("SERVICE")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}
-							else if(entity.equals("MASK")) {
-								output.println(Errors.ERR_IMPLEMENT + " Not Implemented");
-							}
-							else {
-								output.println(Errors.ERR_SYNTAX + " Unknown entity: " + entity);
-							}
-						}
-						else {
-							output.println(Errors.ERR_SYNTAX + " Unknown intent: " + entity);
-						}
+						handler = getHandler(cmdParsed[0]);
+						output.println(handler.handle(cmdParsed));
 					}
 					catch(Exception e) {
 						e.printStackTrace();
@@ -329,7 +169,7 @@ public class DHCPBackend {
 		catch(Exception e) {}
 		System.out.println("Assigned IP " + ip + " to user " + user);
 	}
-	public static void assignIPBulk(String guild, String userStr) throws Exception{
+	public static String assignIPBulk(String guild, String userStr) throws Exception{
 		try {
 			createFolder(guild);
 		}
@@ -344,7 +184,7 @@ public class DHCPBackend {
 		int x = 0;
 		while(x < 255*255 && complete < users.length) {
 			if(complete == users.length) { //Just in case
-				return;
+				return "Done";
 			}
 			if(!freedIps.get(guild).isEmpty()) {
 				ip = freedIps.get(guild).remove(0);
@@ -362,9 +202,10 @@ public class DHCPBackend {
 				complete++;
 			}
 			if(complete == users.length) {
-				return;
+				return "Done";
 			}
 		}
+		return "Done";
 	}
 	public static String assignIp(String guild, String user) throws Exception{
 		try {
@@ -428,5 +269,23 @@ public class DHCPBackend {
 		}
 		catch(Exception e) {}
 		System.out.println("Done!");
+	}
+	public static PrintWriter getPrintWriter() {
+		return output;
+	}
+	public static DHCPBackend getSelf() {
+		return new DHCPBackend();
+	}
+	public static Handler getHandler(String intent) {
+		switch(intent) {
+		case "GET": return getHandler;
+		case "SET": return setHandler;
+		case "SERVICE": return serviceHandler;
+		case "RELEASE": return releaseHandler;
+		case "FLUSH": return flushHandler;
+		case "ASSIGN": return assignHandler;
+		case "ASSIGNBULK": return assignHandler;
+		default: return null;
+		}
 	}
 }
