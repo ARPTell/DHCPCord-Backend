@@ -50,7 +50,7 @@ public class DHCPBackend {
 				while((cmd = input.readLine()) != null) {
 					System.out.println("Received request: " + cmd);
 					try {
-						cmdParsed = cmd.split(" ");
+						cmdParsed = cmd.split(" ", 7);
 						handler = getHandler(cmdParsed[0]);
 						if(handler == null) {
 							throw new UnsupportedOperationException("Bad intent: " + cmdParsed[0]);
@@ -286,14 +286,14 @@ public class DHCPBackend {
 		if(!folder.exists()) {
 			folder.mkdirs();
 		}
-		File service = new File(folder, name + ".json");
+		File service = new File(folder, port + ".json");
 		if(service.exists()) {
-			throw new Exception("Service already exists!");
+			service.delete();
 		}
 		service.createNewFile();
 		JSONObject jsonObj = new JSONObject(json);
-		if(!jsonObj.has("port")) {
-			jsonObj.put("port", Integer.parseInt(port));
+		if(!jsonObj.has("name")) {
+			jsonObj.put("name", name);
 		}
 		FileOutputStream stream = new FileOutputStream(service);
 		stream.write(jsonObj.toString().getBytes());
@@ -303,19 +303,17 @@ public class DHCPBackend {
 		if(user.contains(".")) {
 			user = getUser(guild, user);
 		}
-		File serviceFolder = new File("dhcp/" + guild + "/services/" + user);
-		File[] services = serviceFolder.listFiles();
-		JSONObject obj = null;
-		for(File service : services) {
-			obj = new JSONObject(service);
-			if(obj.getInt("port") == Integer.parseInt(port)) {
-				return obj.toString();
-			}
+		File service = new File("dhcp/" + guild + "/services/" + user + "/" + port + ".json");
+		if(service.exists()) {
+			return new JSONObject(service).toString();
 		}
 		throw new Exception("Unknown service");
 	}
 	public static void deleteService(String guild, String user, String port) {
-		
+		File service = new File("dhcp/" + guild + "/services/" + user + "/" + port + ".json");
+		if(service.exists()) {
+			service.delete();
+		}
 	}
 	public static PrintWriter getPrintWriter() {
 		return output;

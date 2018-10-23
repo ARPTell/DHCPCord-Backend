@@ -13,7 +13,7 @@ public class SetHandler implements Handler{
 		switch(entity) {
 		case "IP": DHCPBackend.setIp(guild, user, args[4], true); return "SUCCESS";
 		case "MASK": throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " Unimplemented");
-		case "SERVICE": throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " Unimplemented");
+		case "SERVICE": DHCPBackend.createService(guild, user, args[5], args[4], args[6]); return "SUCCESS";
 		default: throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " 'SET' operator not defined for entity " + entity);
 		}
 	}

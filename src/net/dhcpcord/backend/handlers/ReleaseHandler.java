@@ -12,6 +12,7 @@ public class ReleaseHandler implements Handler{
 		String user = args[3];
 		switch(entity) {
 		case "IP": DHCPBackend.release(guild, user); return "SUCCESS";
+		case "SERVICE": DHCPBackend.deleteService(guild, user, args[4]); return "SUCCESS";
 		default: throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " Not Implemented");
 		}
 	}
