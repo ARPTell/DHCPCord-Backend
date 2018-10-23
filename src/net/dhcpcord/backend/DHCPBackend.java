@@ -4,12 +4,15 @@ import java.net.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
+
+import org.json.*;
 
 import net.dhcpcord.backend.errors.*;
 import net.dhcpcord.backend.handlers.*;
@@ -25,7 +28,6 @@ public class DHCPBackend {
 	private static Handler getHandler = new GetHandler();
 	private static Handler setHandler = new SetHandler();
 	private static Handler releaseHandler = new ReleaseHandler();
-	private static Handler serviceHandler = new ServiceHandler();
 	
 	
 	public static void main(String[] args) throws Exception{
@@ -279,6 +281,42 @@ public class DHCPBackend {
 		catch(Exception e) {}
 		System.out.println("Done!");
 	}
+	public static void createService(String guild, String user, String port, String name, String json) throws Exception{
+		File folder = new File("dhcp/" + guild + "/services/" + (user.contains(".") ? getUser(guild, user) : user));
+		if(!folder.exists()) {
+			folder.mkdirs();
+		}
+		File service = new File(folder, name + ".json");
+		if(service.exists()) {
+			throw new Exception("Service already exists!");
+		}
+		service.createNewFile();
+		JSONObject jsonObj = new JSONObject(json);
+		if(!jsonObj.has("port")) {
+			jsonObj.put("port", Integer.parseInt(port));
+		}
+		FileOutputStream stream = new FileOutputStream(service);
+		stream.write(jsonObj.toString().getBytes());
+		stream.close();
+	}
+	public static String getService(String guild, String user, String port) throws Exception{
+		if(user.contains(".")) {
+			user = getUser(guild, user);
+		}
+		File serviceFolder = new File("dhcp/" + guild + "/services/" + user);
+		File[] services = serviceFolder.listFiles();
+		JSONObject obj = null;
+		for(File service : services) {
+			obj = new JSONObject(service);
+			if(obj.getInt("port") == Integer.parseInt(port)) {
+				return obj.toString();
+			}
+		}
+		throw new Exception("Unknown service");
+	}
+	public static void deleteService(String guild, String user, String port) {
+		
+	}
 	public static PrintWriter getPrintWriter() {
 		return output;
 	}
@@ -289,7 +327,6 @@ public class DHCPBackend {
 		switch(intent) {
 		case "GET": return getHandler;
 		case "SET": return setHandler;
-		case "SERVICE": return serviceHandler;
 		case "RELEASE": return releaseHandler;
 		case "FLUSH": return flushHandler;
 		case "ASSIGN": return assignHandler;
