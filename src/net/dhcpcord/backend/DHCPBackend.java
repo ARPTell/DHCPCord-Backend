@@ -305,7 +305,23 @@ public class DHCPBackend {
 		}
 		File service = new File("dhcp/" + guild + "/services/" + user + "/" + port + ".json");
 		if(service.exists()) {
-			return new JSONObject(service).toString();
+			String json = "";
+			Scanner sc = new Scanner(service);
+			while(sc.hasNext()){
+				json += sc.next();
+			}
+			sc.close();
+			return json;
+		}
+		throw new Exception("Unknown service");
+	}
+	public static int getServicePort(String guild, String user, String name) throws Exception{
+		for(int i = 0; i < 65536; i++){
+			try{
+				getService(guild, user, i + "");
+				return i;
+			}
+			catch(Exception e){}
 		}
 		throw new Exception("Unknown service");
 	}

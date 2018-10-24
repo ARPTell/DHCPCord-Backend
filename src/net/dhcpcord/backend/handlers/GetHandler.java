@@ -14,7 +14,8 @@ public class GetHandler implements Handler{
 		case "IP": return DHCPBackend.getIp(guild, user);
 		case "USER": return DHCPBackend.getUser(guild, user);
 		case "MASK": throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " Unimplemented");
-		case "SERVICE": throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " Unimplemented");
+		case "PORT": return DHCPBackend.getServicePort(guild, user, args[4]) + "";
+		case "SERVICE": return DHCPBackend.getService(guild, user, args[4]);
 		default: throw new UnsupportedOperationException(Errors.ERR_IMPLEMENT + " 'GET' operator not defined for entity " + entity);
 		}
 	}

@@ -5,6 +5,7 @@ public enum Entitiy {
 	IP("IP"),
 	USER("USER"),
 	MASK("MASK"),
+	PORT("PORT"),
 	SERVICE("SERVICE");
 	
 	private final String name;
