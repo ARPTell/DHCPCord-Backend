@@ -95,6 +95,13 @@ public class DHCPBackend {
 			}
 		}
 	}
+	public static void validate(Object... objects) {
+		for(Object obj : objects) {
+			if(obj.toString().contains("..") || obj.toString().contains("/")) {
+				throw new IllegalArgumentException("Object " + obj.getClass().getName() +  " (" + obj + ") contains forbidden characters");
+			}
+		}
+	}
 	public static void createFolder(String guild) {
 		new File("dhcp/" + guild).mkdirs();
 	}
@@ -129,6 +136,7 @@ public class DHCPBackend {
 	}*/
 	@SuppressWarnings("resource")
 	public static String getUser(String guild, String ip) throws Exception{
+		validate(guild, ip);
 		System.out.println("Getting user associated with IP " + ip + "... (Guild: " + guild + ")");
 		File file = new File("dhcp/" + guild + "/" + ip);
 		if(file.exists()) {
@@ -141,6 +149,7 @@ public class DHCPBackend {
 		return getIp(guild, user, true);
 	}
 	public static String getIp(String guild, String user, boolean assign) throws Exception{
+		validate(guild, user);
 		String ip = "";
 		File file = new File("dhcp/" + guild);
 		if(!file.exists()) {
@@ -161,6 +170,7 @@ public class DHCPBackend {
 		return ip;
 	}
 	public static void setIp(String guild, String user, String ip, boolean write) throws Exception{
+		validate(guild, user, ip);
 		try {
 			createFolder(guild);
 		}
@@ -181,6 +191,7 @@ public class DHCPBackend {
 		System.out.println("Assigned IP " + ip + " to user " + user);
 	}
 	public static String assignIPBulk(String guild, String userStr) throws Exception{
+		validate(guild, userStr);
 		try {
 			createFolder(guild);
 		}
@@ -219,6 +230,7 @@ public class DHCPBackend {
 		return "Done";
 	}
 	public static String assignIp(String guild, String user) throws Exception{
+		validate(guild, user);
 		try {
 			createFolder(guild);
 		}
@@ -256,6 +268,7 @@ public class DHCPBackend {
 		return ip;
 	}
 	public static void release(String guild, String user) throws Exception{
+		validate(guild, user);
 		try {
 			freedIps.get(guild).add(getIp(guild, user));
 		}
@@ -266,6 +279,7 @@ public class DHCPBackend {
 		file.delete();
 	}
 	public static void flush(String guild) throws Exception{
+		validate(guild);
 		File folder = new File("dhcp/" + guild);
 		if(!folder.exists()) {
 			return;
@@ -282,6 +296,7 @@ public class DHCPBackend {
 		System.out.println("Done!");
 	}
 	public static void createService(String guild, String user, String port, String name, String json) throws Exception{
+		validate(guild, user);
 		File folder = new File("dhcp/" + guild + "/services/" + (user.contains(".") ? getUser(guild, user) : user));
 		if(!folder.exists()) {
 			folder.mkdirs();
@@ -300,6 +315,7 @@ public class DHCPBackend {
 		stream.close();
 	}
 	public static String getService(String guild, String user, String port) throws Exception{
+		validate(guild, user);
 		if(user.contains(".")) {
 			user = getUser(guild, user);
 		}
@@ -316,16 +332,21 @@ public class DHCPBackend {
 		throw new Exception("Unknown service");
 	}
 	public static int getServicePort(String guild, String user, String name) throws Exception{
+		validate(guild, user);
+		JSONObject json = null;
 		for(int i = 0; i < 65536; i++){
 			try{
-				getService(guild, user, i + "");
-				return i;
+				json = new JSONObject(getService(guild, user, i + ""));
+				if(json.getString("name").equals(name)) {
+					return i;
+				}
 			}
 			catch(Exception e){}
 		}
 		throw new Exception("Unknown service");
 	}
 	public static void deleteService(String guild, String user, String port) {
+		validate(guild, user);
 		File service = new File("dhcp/" + guild + "/services/" + user + "/" + port + ".json");
 		if(service.exists()) {
 			service.delete();
